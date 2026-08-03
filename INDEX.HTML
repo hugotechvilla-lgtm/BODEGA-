@@ -10,10 +10,29 @@
         padding: 15px;
       }
 
-      h2 {
-        text-align: center;
-        color: #333;
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 15px;
+      }
+
+      h2 {
+        color: #333;
+        margin: 0;
+      }
+
+      /* Botón para abrir modal */
+      .btn-agregar-header {
+        background-color: #198754;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-weight: bold;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
       }
 
       /* Buscador */
@@ -173,19 +192,128 @@
       input:checked + .slider:before {
         transform: translateX(24px);
       }
+
+      /* MODAL VENTANA EMERGENTE */
+      .modal {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .modal-content {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 400px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+      }
+
+      .modal-header {
+        font-size: 18px;
+        font-weight: bold;
+        margin-bottom: 15px;
+        color: #333;
+      }
+
+      .form-group {
+        margin-bottom: 12px;
+      }
+
+      .form-group label {
+        display: block;
+        font-size: 12px;
+        font-weight: bold;
+        margin-bottom: 4px;
+        color: #555;
+      }
+
+      .form-group input, .form-group select {
+        width: 100%;
+        padding: 10px;
+        font-size: 14px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        box-sizing: border-box;
+      }
+
+      .modal-actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .btn-guardar {
+        background-color: #198754;
+        color: white;
+        border: none;
+        padding: 10px;
+        flex: 1;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      .btn-cancelar {
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        padding: 10px;
+        flex: 1;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+
+      /* NOTIFICACIÓN EMBLEMA (TOAST) */
+      .toast-notificacion {
+        visibility: hidden;
+        min-width: 280px;
+        background-color: #198754;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 14px 20px;
+        position: fixed;
+        z-index: 2000;
+        left: 50%;
+        bottom: 30px;
+        transform: translateX(-50%);
+        font-size: 14px;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+        opacity: 0;
+        transition: opacity 0.3s, bottom 0.3s;
+      }
+
+      .toast-notificacion.mostrar {
+        visibility: visible;
+        opacity: 1;
+        bottom: 40px;
+      }
+
+      .toast-notificacion.error {
+        background-color: #dc3545;
+      }
     </style>
   </head>
   <body>
 
-    <h2>📦 Inventario Bodega</h2>
+    <header>
+      <h2>📦 Inventario Bodega</h2>
+      <button class="btn-agregar-header" onclick="abrirModal()">➕ Nuevo</button>
+    </header>
 
     <!-- Buscador General -->
     <input type="text" id="buscador" class="search-box" placeholder="Buscar modelo o código..." onkeyup="aplicarFiltros()">
 
-    <!-- Botones de Filtro Rápidos (Sin botones de estado) -->
+    <!-- Botones de Filtro Rápidos -->
     <div id="contenedorFiltros" class="contenedor-filtros">
       <button class="btn-filtro activo" onclick="filtrarCategoria('TODOS', this)">Todos</button>
-      <!-- Las categorías de productos se generan automáticamente desde Sheets -->
     </div>
 
     <!-- Lista de Tarjetas -->
@@ -193,15 +321,62 @@
       <p style="text-align:center;">Cargando inventario...</p>
     </div>
 
+    <!-- MODAL AGREGAR PRODUCTO -->
+    <div id="modalAgregar" class="modal">
+      <div class="modal-content">
+        <div class="modal-header">➕ Registrar Nuevo Producto</div>
+        
+        <div class="form-group">
+          <label>Categoría / Producto (Ej. VIDRIO PREMIUM, CARGADORES)</label>
+          <input type="text" id="nuevoProducto" placeholder="Escribe la categoría...">
+        </div>
+
+        <div class="form-group">
+          <label>Modelo (Ej. iPhone 15 Pro, Samsung A54)</label>
+          <input type="text" id="nuevoModelo" placeholder="Escribe el modelo...">
+        </div>
+
+        <div class="form-group">
+          <label>Ubicación (Ej. BODEGA 1, ESTANTE A)</label>
+          <input type="text" id="nuevaUbicacion" placeholder="Escribe la ubicación...">
+        </div>
+
+        <div class="form-group">
+          <label>Código (Opcional - Se genera solo si lo dejas vacío)</label>
+          <input type="text" id="nuevoCodigo" placeholder="Código interno...">
+        </div>
+
+        <div class="form-group">
+          <label>Estado Inicial</label>
+          <select id="nuevoEstado">
+            <option value="DISPONIBLE">🟢 DISPONIBLE</option>
+            <option value="AGOTADO">🔴 AGOTADO</option>
+          </select>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-guardar" id="btnGuardarProd" onclick="guardarNuevoProducto()">Guardar</button>
+          <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CARTELITO DE MENSAJE TIPO TOAST -->
+    <div id="toast" class="toast-notificacion"></div>
+
     <script>
       var listaProductosGlobal = [];
       var filtroCategoriaActual = 'TODOS';
 
       window.onload = function() {
+        cargarInventario();
+      };
+
+      function cargarInventario() {
         google.script.run
           .withSuccessHandler(inicializarApp)
           .obtenerProductos();
-      };
+      }
 
       function inicializarApp(productos) {
         listaProductosGlobal = productos;
@@ -209,11 +384,11 @@
         renderizarProductos(productos);
       }
 
-      // Crea botones automáticamente según las categorías de la Columna B
       function generarBotonesCategorias(productos) {
         var contenedor = document.getElementById('contenedorFiltros');
+        contenedor.innerHTML = '<button class="btn-filtro activo" onclick="filtrarCategoria(\'TODOS\', this)">Todos</button>';
+        
         var categorias = [];
-
         productos.forEach(function(item) {
           if (item.producto && !categorias.includes(item.producto.toString().trim())) {
             categorias.push(item.producto.toString().trim());
@@ -229,7 +404,6 @@
         });
       }
 
-      // Renderiza los datos en tarjetas
       function renderizarProductos(productos) {
         var contenedor = document.getElementById('contenedorLista');
         contenedor.innerHTML = '';
@@ -270,18 +444,14 @@
         aplicarFiltros();
       }
 
-      // Maneja los clics en los botones de filtro
       function filtrarCategoria(categoria, elementoBtn) {
         filtroCategoriaActual = categoria;
-        
         var botones = document.querySelectorAll('.btn-filtro');
         botones.forEach(b => b.classList.remove('activo'));
         elementoBtn.classList.add('activo');
-
         aplicarFiltros();
       }
 
-      // Aplica el filtro por categoría y la búsqueda por texto
       function aplicarFiltros() {
         var textoBuscador = document.getElementById('buscador').value.toLowerCase();
         var tarjetas = document.querySelectorAll('.tarjeta-producto');
@@ -289,7 +459,6 @@
         tarjetas.forEach(function(tarjeta) {
           var coincideTexto = tarjeta.getAttribute('data-busqueda').includes(textoBuscador);
           var coincideFiltro = false;
-
           var catData = tarjeta.getAttribute('data-producto');
 
           if (filtroCategoriaActual === 'TODOS') {
@@ -306,13 +475,11 @@
         });
       }
 
-      // Actualización rápida y envío a Sheets
       function cambiarEstado(checkbox, codigo, modelo) {
         var nuevoEstado = checkbox.checked ? 'DISPONIBLE' : 'AGOTADO';
         var tarjeta = checkbox.closest('.tarjeta-producto');
         var badge = tarjeta.querySelector('.badge-estado');
 
-        // 1. Cambio visual instantáneo
         badge.textContent = nuevoEstado;
 
         if (nuevoEstado === 'DISPONIBLE') {
@@ -323,19 +490,101 @@
           tarjeta.classList.add('estado-agotado');
         }
 
-        // 2. Envío a Google Sheets
         google.script.run
           .withSuccessHandler(function(respuesta) {
-            if (!respuesta.exito) {
-              alert("Error: " + respuesta.mensaje);
-            }
-          })
-          .withFailureHandler(function(error) {
-            alert("Error de conexión: " + error);
-            checkbox.checked = !checkbox.checked;
-            cambiarEstado(checkbox, codigo, modelo);
+            if (!respuesta.exito) mostrarNotificacion("Error: " + respuesta.mensaje, true);
           })
           .actualizarEstadoProducto(codigo, modelo, nuevoEstado);
+      }
+
+      /* LÓGICA DEL MODAL AGREGAR PRODUCTO */
+      function abrirModal() {
+        document.getElementById('modalAgregar').style.display = 'flex';
+      }
+
+      function cerrarModal() {
+        document.getElementById('modalAgregar').style.display = 'none';
+        limpiarFormulario();
+      }
+
+      function limpiarFormulario() {
+        document.getElementById('nuevoProducto').value = '';
+        document.getElementById('nuevoModelo').value = '';
+        document.getElementById('nuevaUbicacion').value = '';
+        document.getElementById('nuevoCodigo').value = '';
+      }
+
+      function guardarNuevoProducto() {
+        var prod = document.getElementById('nuevoProducto').value;
+        var mod = document.getElementById('nuevoModelo').value;
+        var ubi = document.getElementById('nuevaUbicacion').value;
+        var cod = document.getElementById('nuevoCodigo').value;
+        var est = document.getElementById('nuevoEstado').value;
+
+        if (!prod || !mod) {
+          mostrarNotificacion("⚠️ Por favor completa Categoría y Modelo", true);
+          return;
+        }
+
+        // Validación local previa de duplicado
+        var esDuplicadoLocal = listaProductosGlobal.some(function(item) {
+          return item.producto.toString().toUpperCase().trim() === prod.toUpperCase().trim() &&
+                 item.modelo.toString().toUpperCase().trim() === mod.toUpperCase().trim();
+        });
+
+        if (esDuplicadoLocal) {
+          mostrarNotificacion("⚠️ El modelo '" + mod + "' ya existe en " + prod, true);
+          return;
+        }
+
+        var btn = document.getElementById('btnGuardarProd');
+        btn.disabled = true;
+        btn.innerText = "Guardando...";
+
+        var datosNuevo = {
+          producto: prod,
+          modelo: mod,
+          ubicacion: ubi || "BODEGA",
+          codigo: cod,
+          estado: est
+        };
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            btn.disabled = false;
+            btn.innerText = "Guardar";
+            if (res.exito) {
+              cerrarModal();
+              mostrarNotificacion("✅ ¡Producto guardado correctamente!");
+              cargarInventario();
+            } else {
+              mostrarNotificacion(res.mensaje, true);
+            }
+          })
+          .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.innerText = "Guardar";
+            mostrarNotificacion("❌ Error de conexión: " + err, true);
+          })
+          .agregarProductoNuevo(datosNuevo);
+      }
+
+      /* MOSTRAR MENSAJE EMERGENTE TOAST */
+      function mostrarNotificacion(mensaje, esError = false) {
+        var toast = document.getElementById('toast');
+        toast.innerText = mensaje;
+        
+        if (esError) {
+          toast.classList.add('error');
+        } else {
+          toast.classList.remove('error');
+        }
+
+        toast.classList.add('mostrar');
+
+        setTimeout(function() {
+          toast.classList.remove('mostrar');
+        }, 3500);
       }
     </script>
   </body>
