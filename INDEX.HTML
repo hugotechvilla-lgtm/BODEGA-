@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f6f9;
+        margin: 0;
+        padding: 15px;
+      }
+
+      h2 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 15px;
+      }
+
+      /* Buscador */
+      .search-box {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        margin-bottom: 12px;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-sizing: border-box;
+      }
+
+      /* BARRA DE FILTROS POR BOTONES */
+      .contenedor-filtros {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        white-space: nowrap;
+      }
+
+      .btn-filtro {
+        padding: 8px 14px;
+        border: 1px solid #0d6efd;
+        background-color: #ffffff;
+        color: #0d6efd;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn-filtro.activo, .btn-filtro:hover {
+        background-color: #0d6efd;
+        color: #ffffff;
+      }
+
+      /* Contenedor de Lista */
+      .lista-productos {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      /* Tarjeta de Producto */
+      .tarjeta-producto {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px;
+        background-color: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.08);
+        border-left: 6px solid #ccc;
+        transition: all 0.3s ease;
+      }
+
+      .tarjeta-producto.estado-disponible {
+        border-left-color: #198754;
+      }
+
+      .tarjeta-producto.estado-agotado {
+        border-left-color: #dc3545;
+        background-color: #fff8f8;
+      }
+
+      .info-producto {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .cat-badge {
+        font-size: 11px;
+        color: #6c757d;
+        text-transform: uppercase;
+        font-weight: bold;
+      }
+
+      .nombre-modelo {
+        font-size: 16px;
+        font-weight: bold;
+        color: #222;
+        margin: 2px 0;
+      }
+
+      .detalles-producto {
+        font-size: 12px;
+        color: #666;
+      }
+
+      .control-estado {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .badge-estado {
+        font-size: 11px;
+        font-weight: bold;
+        padding: 4px 6px;
+        border-radius: 4px;
+        text-transform: uppercase;
+      }
+
+      .estado-disponible .badge-estado {
+        background-color: #d1e7dd;
+        color: #0f5132;
+      }
+
+      .estado-agotado .badge-estado {
+        background-color: #f8d7da;
+        color: #842029;
+      }
+
+      /* BOTÓN DESLIZABLE (SWITCH) */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 48px;
+        height: 24px;
+      }
+
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: #dc3545;
+        transition: .3s;
+        border-radius: 34px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .3s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #198754;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+    </style>
+  </head>
+  <body>
+
+    <h2>📦 Inventario Bodega</h2>
+
+    <!-- Buscador General -->
+    <input type="text" id="buscador" class="search-box" placeholder="Buscar modelo o código..." onkeyup="aplicarFiltros()">
+
+    <!-- Botones de Filtro Rápidos (Sin botones de estado) -->
+    <div id="contenedorFiltros" class="contenedor-filtros">
+      <button class="btn-filtro activo" onclick="filtrarCategoria('TODOS', this)">Todos</button>
+      <!-- Las categorías de productos se generan automáticamente desde Sheets -->
+    </div>
+
+    <!-- Lista de Tarjetas -->
+    <div id="contenedorLista" class="lista-productos">
+      <p style="text-align:center;">Cargando inventario...</p>
+    </div>
+
+    <script>
+      var listaProductosGlobal = [];
+      var filtroCategoriaActual = 'TODOS';
+
+      window.onload = function() {
+        google.script.run
+          .withSuccessHandler(inicializarApp)
+          .obtenerProductos();
+      };
+
+      function inicializarApp(productos) {
+        listaProductosGlobal = productos;
+        generarBotonesCategorias(productos);
+        renderizarProductos(productos);
+      }
+
+      // Crea botones automáticamente según las categorías de la Columna B
+      function generarBotonesCategorias(productos) {
+        var contenedor = document.getElementById('contenedorFiltros');
+        var categorias = [];
+
+        productos.forEach(function(item) {
+          if (item.producto && !categorias.includes(item.producto.toString().trim())) {
+            categorias.push(item.producto.toString().trim());
+          }
+        });
+
+        categorias.forEach(function(cat) {
+          var btn = document.createElement('button');
+          btn.className = 'btn-filtro';
+          btn.innerText = cat;
+          btn.onclick = function() { filtrarCategoria(cat, btn); };
+          contenedor.appendChild(btn);
+        });
+      }
+
+      // Renderiza los datos en tarjetas
+      function renderizarProductos(productos) {
+        var contenedor = document.getElementById('contenedorLista');
+        contenedor.innerHTML = '';
+
+        if (productos.length === 0) {
+          contenedor.innerHTML = '<p style="text-align:center; color:#777;">No hay productos para mostrar.</p>';
+          return;
+        }
+
+        productos.forEach(function(item) {
+          var esDisponible = (item.estado === 'DISPONIBLE');
+          var claseEstado = esDisponible ? 'estado-disponible' : 'estado-agotado';
+
+          var tarjeta = document.createElement('div');
+          tarjeta.className = `tarjeta-producto ${claseEstado}`;
+          tarjeta.setAttribute('data-producto', (item.producto || '').toLowerCase());
+          tarjeta.setAttribute('data-busqueda', `${item.modelo} ${item.codigo} ${item.ubicacion}`.toLowerCase());
+
+          tarjeta.innerHTML = `
+            <div class="info-producto">
+              <span class="cat-badge">${item.producto || 'GENERAL'}</span>
+              <span class="nombre-modelo">${item.modelo}</span>
+              <span class="detalles-producto">Código: ${item.codigo} | Ubic: ${item.ubicacion}</span>
+            </div>
+            <div class="control-estado">
+              <span class="badge-estado">${item.estado}</span>
+              <label class="switch">
+                <input type="checkbox" 
+                       ${esDisponible ? 'checked' : ''} 
+                       onchange="cambiarEstado(this, '${item.codigo}', '${item.modelo}')">
+                <span class="slider"></span>
+              </label>
+            </div>
+          `;
+          contenedor.appendChild(tarjeta);
+        });
+
+        aplicarFiltros();
+      }
+
+      // Maneja los clics en los botones de filtro
+      function filtrarCategoria(categoria, elementoBtn) {
+        filtroCategoriaActual = categoria;
+        
+        var botones = document.querySelectorAll('.btn-filtro');
+        botones.forEach(b => b.classList.remove('activo'));
+        elementoBtn.classList.add('activo');
+
+        aplicarFiltros();
+      }
+
+      // Aplica el filtro por categoría y la búsqueda por texto
+      function aplicarFiltros() {
+        var textoBuscador = document.getElementById('buscador').value.toLowerCase();
+        var tarjetas = document.querySelectorAll('.tarjeta-producto');
+
+        tarjetas.forEach(function(tarjeta) {
+          var coincideTexto = tarjeta.getAttribute('data-busqueda').includes(textoBuscador);
+          var coincideFiltro = false;
+
+          var catData = tarjeta.getAttribute('data-producto');
+
+          if (filtroCategoriaActual === 'TODOS') {
+            coincideFiltro = true;
+          } else if (catData === filtroCategoriaActual.toLowerCase()) {
+            coincideFiltro = true;
+          }
+
+          if (coincideTexto && coincideFiltro) {
+            tarjeta.style.display = 'flex';
+          } else {
+            tarjeta.style.display = 'none';
+          }
+        });
+      }
+
+      // Actualización rápida y envío a Sheets
+      function cambiarEstado(checkbox, codigo, modelo) {
+        var nuevoEstado = checkbox.checked ? 'DISPONIBLE' : 'AGOTADO';
+        var tarjeta = checkbox.closest('.tarjeta-producto');
+        var badge = tarjeta.querySelector('.badge-estado');
+
+        // 1. Cambio visual instantáneo
+        badge.textContent = nuevoEstado;
+
+        if (nuevoEstado === 'DISPONIBLE') {
+          tarjeta.classList.remove('estado-agotado');
+          tarjeta.classList.add('estado-disponible');
+        } else {
+          tarjeta.classList.remove('estado-disponible');
+          tarjeta.classList.add('estado-agotado');
+        }
+
+        // 2. Envío a Google Sheets
+        google.script.run
+          .withSuccessHandler(function(respuesta) {
+            if (!respuesta.exito) {
+              alert("Error: " + respuesta.mensaje);
+            }
+          })
+          .withFailureHandler(function(error) {
+            alert("Error de conexión: " + error);
+            checkbox.checked = !checkbox.checked;
+            cambiarEstado(checkbox, codigo, modelo);
+          })
+          .actualizarEstadoProducto(codigo, modelo, nuevoEstado);
+      }
+    </script>
+  </body>
+</html>
