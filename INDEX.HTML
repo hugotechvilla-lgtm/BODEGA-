@@ -22,7 +22,6 @@
         margin: 0;
       }
 
-      /* Botón para abrir modal */
       .btn-agregar-header {
         background-color: #198754;
         color: white;
@@ -35,7 +34,6 @@
         box-shadow: 0 2px 4px rgba(0,0,0,0.15);
       }
 
-      /* Buscador */
       .search-box {
         width: 100%;
         padding: 12px;
@@ -46,16 +44,29 @@
         box-sizing: border-box;
       }
 
-      /* BARRA DE FILTROS POR BOTONES */
+      /* CONTENEDORES DE FILTROS */
+      .seccion-filtros {
+        margin-bottom: 15px;
+      }
+
+      .label-filtro {
+        font-size: 11px;
+        font-weight: bold;
+        color: #6c757d;
+        text-transform: uppercase;
+        margin-bottom: 5px;
+        display: block;
+      }
+
       .contenedor-filtros {
         display: flex;
         gap: 8px;
         overflow-x: auto;
-        padding-bottom: 10px;
-        margin-bottom: 15px;
+        padding-bottom: 6px;
         white-space: nowrap;
       }
 
+      /* Botones principales (Categoría) */
       .btn-filtro {
         padding: 8px 14px;
         border: 1px solid #0d6efd;
@@ -70,6 +81,24 @@
 
       .btn-filtro.activo, .btn-filtro:hover {
         background-color: #0d6efd;
+        color: #ffffff;
+      }
+
+      /* Botones de Subgrupo (Marcas) */
+      .btn-subfiltro {
+        padding: 6px 12px;
+        border: 1px solid #6c757d;
+        background-color: #ffffff;
+        color: #495057;
+        border-radius: 15px;
+        font-size: 12px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .btn-subfiltro.activo, .btn-subfiltro:hover {
+        background-color: #6c757d;
         color: #ffffff;
       }
 
@@ -105,6 +134,7 @@
       .info-producto {
         display: flex;
         flex-direction: column;
+        max-width: 65%;
       }
 
       .cat-badge {
@@ -115,10 +145,11 @@
       }
 
       .nombre-modelo {
-        font-size: 16px;
+        font-size: 15px;
         font-weight: bold;
         color: #222;
         margin: 2px 0;
+        word-break: break-word;
       }
 
       .detalles-producto {
@@ -150,7 +181,7 @@
         color: #842029;
       }
 
-      /* BOTÓN DESLIZABLE (SWITCH) */
+      /* SWITCH */
       .switch {
         position: relative;
         display: inline-block;
@@ -193,7 +224,7 @@
         transform: translateX(24px);
       }
 
-      /* MODAL VENTANA EMERGENTE */
+      /* MODAL */
       .modal {
         display: none;
         position: fixed;
@@ -269,7 +300,7 @@
         cursor: pointer;
       }
 
-      /* NOTIFICACIÓN EMBLEMA (TOAST) */
+      /* TOAST */
       .toast-notificacion {
         visibility: hidden;
         min-width: 280px;
@@ -309,11 +340,21 @@
     </header>
 
     <!-- Buscador General -->
-    <input type="text" id="buscador" class="search-box" placeholder="Buscar modelo o código..." onkeyup="aplicarFiltros()">
+    <input type="text" id="buscador" class="search-box" placeholder="Ej: A04S, Samsung A12, C35..." onkeyup="aplicarFiltros()">
 
-    <!-- Botones de Filtro Rápidos -->
-    <div id="contenedorFiltros" class="contenedor-filtros">
-      <button class="btn-filtro activo" onclick="filtrarCategoria('TODOS', this)">Todos</button>
+    <div class="seccion-filtros">
+      <!-- 1. CATEGORÍAS PRINCIPALES -->
+      <span class="label-filtro">Categoría</span>
+      <div id="contenedorFiltros" class="contenedor-filtros">
+        <button class="btn-filtro activo" onclick="filtrarCategoria('TODOS', this)">Todos</button>
+      </div>
+
+      <!-- 2. SUBFILTROS / MARCAS -->
+      <div id="seccionSubfiltros" style="display: none; margin-top: 10px;">
+        <span class="label-filtro">Marca / Subgrupo</span>
+        <div id="contenedorSubfiltros" class="contenedor-filtros">
+        </div>
+      </div>
     </div>
 
     <!-- Lista de Tarjetas -->
@@ -332,8 +373,8 @@
         </div>
 
         <div class="form-group">
-          <label>Modelo (Ej. iPhone 15 Pro, Samsung A54)</label>
-          <input type="text" id="nuevoModelo" placeholder="Escribe el modelo...">
+          <label>Modelos Compatibles (Separa con / )</label>
+          <input type="text" id="nuevoModelo" placeholder="Ej: SAMSUNG A12 / A13 4G / A04 / A04S">
         </div>
 
         <div class="form-group">
@@ -361,12 +402,14 @@
       </div>
     </div>
 
-    <!-- CARTELITO DE MENSAJE TIPO TOAST -->
     <div id="toast" class="toast-notificacion"></div>
 
     <script>
       var listaProductosGlobal = [];
       var filtroCategoriaActual = 'TODOS';
+      var filtroMarcaActual = 'TODAS';
+
+      var marcasConocidas = ['SAMSUNG', 'IPHONE', 'XIAOMI', 'REDMI', 'MOTOROLA', 'REALME', 'HONOR', 'OPPO', 'HONOR', 'INFINIX', 'TECNO', "VIVO"];
 
       window.onload = function() {
         cargarInventario();
@@ -404,6 +447,95 @@
         });
       }
 
+      function filtrarCategoria(categoria, elementoBtn) {
+        filtroCategoriaActual = categoria;
+        filtroMarcaActual = 'TODAS';
+
+        var botones = document.querySelectorAll('.btn-filtro');
+        botones.forEach(b => b.classList.remove('activo'));
+        elementoBtn.classList.add('activo');
+
+        if (categoria === 'TODOS') {
+          document.getElementById('seccionSubfiltros').style.display = 'none';
+        } else {
+          generarSubfiltrosMarcas(categoria);
+        }
+
+        aplicarFiltros();
+      }
+
+      function generarSubfiltrosMarcas(categoria) {
+        var contenedorSub = document.getElementById('contenedorSubfiltros');
+        contenedorSub.innerHTML = '<button class="btn-subfiltro activo" onclick="filtrarMarca(\'TODAS\', this)">Todas las marcas</button>';
+        
+        var productosDeCategoria = listaProductosGlobal.filter(function(p) {
+          return p.producto && p.producto.toString().trim().toLowerCase() === categoria.toLowerCase();
+        });
+
+        var marcasEncontradas = [];
+
+        productosDeCategoria.forEach(function(item) {
+          var modelo = item.modelo ? item.modelo.toString().toUpperCase() : '';
+          
+          marcasConocidas.forEach(function(marca) {
+            if (modelo.includes(marca) && !marcasEncontradas.includes(marca)) {
+              marcasEncontradas.push(marca);
+            }
+          });
+        });
+
+        if (marcasEncontradas.length > 0) {
+          document.getElementById('seccionSubfiltros').style.display = 'block';
+          
+          marcasEncontradas.forEach(function(marca) {
+            var btn = document.createElement('button');
+            btn.className = 'btn-subfiltro';
+            btn.innerText = marca;
+            btn.onclick = function() { filtrarMarca(marca, btn); };
+            contenedorSub.appendChild(btn);
+          });
+        } else {
+          document.getElementById('seccionSubfiltros').style.display = 'none';
+        }
+      }
+
+      function filtrarMarca(marca, elementoBtn) {
+        filtroMarcaActual = marca;
+        var botones = document.querySelectorAll('.btn-subfiltro');
+        botones.forEach(b => b.classList.remove('activo'));
+        elementoBtn.classList.add('activo');
+
+        aplicarFiltros();
+      }
+
+      function aplicarFiltros() {
+        var textoBuscador = document.getElementById('buscador').value.toLowerCase().trim();
+        var tarjetas = document.querySelectorAll('.tarjeta-producto');
+
+        tarjetas.forEach(function(tarjeta) {
+          var coincideTexto = tarjeta.getAttribute('data-busqueda').includes(textoBuscador);
+          var coincideCat = false;
+          var coincideMarca = false;
+
+          var catData = tarjeta.getAttribute('data-producto');
+          var modeloData = tarjeta.getAttribute('data-modelo');
+
+          if (filtroCategoriaActual === 'TODOS' || catData === filtroCategoriaActual.toLowerCase()) {
+            coincideCat = true;
+          }
+
+          if (filtroMarcaActual === 'TODAS' || modeloData.includes(filtroMarcaActual.toLowerCase())) {
+            coincideMarca = true;
+          }
+
+          if (coincideTexto && coincideCat && coincideMarca) {
+            tarjeta.style.display = 'flex';
+          } else {
+            tarjeta.style.display = 'none';
+          }
+        });
+      }
+
       function renderizarProductos(productos) {
         var contenedor = document.getElementById('contenedorLista');
         contenedor.innerHTML = '';
@@ -420,7 +552,11 @@
           var tarjeta = document.createElement('div');
           tarjeta.className = `tarjeta-producto ${claseEstado}`;
           tarjeta.setAttribute('data-producto', (item.producto || '').toLowerCase());
-          tarjeta.setAttribute('data-busqueda', `${item.modelo} ${item.codigo} ${item.ubicacion}`.toLowerCase());
+          tarjeta.setAttribute('data-modelo', (item.modelo || '').toLowerCase());
+          
+          // Reemplazamos barras por espacios en la propiedad de búsqueda para mayor flexibilidad
+          var textoBusquedaLimpio = `${item.modelo} ${item.codigo} ${item.ubicacion}`.replace(/\//g, ' ').toLowerCase();
+          tarjeta.setAttribute('data-busqueda', textoBusquedaLimpio);
 
           tarjeta.innerHTML = `
             <div class="info-producto">
@@ -442,37 +578,6 @@
         });
 
         aplicarFiltros();
-      }
-
-      function filtrarCategoria(categoria, elementoBtn) {
-        filtroCategoriaActual = categoria;
-        var botones = document.querySelectorAll('.btn-filtro');
-        botones.forEach(b => b.classList.remove('activo'));
-        elementoBtn.classList.add('activo');
-        aplicarFiltros();
-      }
-
-      function aplicarFiltros() {
-        var textoBuscador = document.getElementById('buscador').value.toLowerCase();
-        var tarjetas = document.querySelectorAll('.tarjeta-producto');
-
-        tarjetas.forEach(function(tarjeta) {
-          var coincideTexto = tarjeta.getAttribute('data-busqueda').includes(textoBuscador);
-          var coincideFiltro = false;
-          var catData = tarjeta.getAttribute('data-producto');
-
-          if (filtroCategoriaActual === 'TODOS') {
-            coincideFiltro = true;
-          } else if (catData === filtroCategoriaActual.toLowerCase()) {
-            coincideFiltro = true;
-          }
-
-          if (coincideTexto && coincideFiltro) {
-            tarjeta.style.display = 'flex';
-          } else {
-            tarjeta.style.display = 'none';
-          }
-        });
       }
 
       function cambiarEstado(checkbox, codigo, modelo) {
@@ -497,7 +602,6 @@
           .actualizarEstadoProducto(codigo, modelo, nuevoEstado);
       }
 
-      /* LÓGICA DEL MODAL AGREGAR PRODUCTO */
       function abrirModal() {
         document.getElementById('modalAgregar').style.display = 'flex';
       }
@@ -522,18 +626,17 @@
         var est = document.getElementById('nuevoEstado').value;
 
         if (!prod || !mod) {
-          mostrarNotificacion("⚠️ Por favor completa Categoría y Modelo", true);
+          mostrarNotificacion("⚠️ Por favor completa Categoría y Modelos", true);
           return;
         }
 
-        // Validación local previa de duplicado
         var esDuplicadoLocal = listaProductosGlobal.some(function(item) {
           return item.producto.toString().toUpperCase().trim() === prod.toUpperCase().trim() &&
                  item.modelo.toString().toUpperCase().trim() === mod.toUpperCase().trim();
         });
 
         if (esDuplicadoLocal) {
-          mostrarNotificacion("⚠️ El modelo '" + mod + "' ya existe en " + prod, true);
+          mostrarNotificacion("⚠️ Este registro ya existe en el inventario", true);
           return;
         }
 
@@ -569,7 +672,6 @@
           .agregarProductoNuevo(datosNuevo);
       }
 
-      /* MOSTRAR MENSAJE EMERGENTE TOAST */
       function mostrarNotificacion(mensaje, esError = false) {
         var toast = document.getElementById('toast');
         toast.innerText = mensaje;
